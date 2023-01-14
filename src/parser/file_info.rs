@@ -32,7 +32,7 @@ pub fn parse_file_info(endianness: Endianness) -> impl FnMut(&[u8]) -> IResult<&
             (format, total_size, crc32, file_info_size, sector_count, type_ref, root_ref, tag)
         )(input)?;
 
-        take((file_info_size - 40) as usize)(input)?;
+        let (input, _) = take((file_info_size - 40) as usize)(input)?;
 
         Ok((input, FileInfo {
             format_version,
