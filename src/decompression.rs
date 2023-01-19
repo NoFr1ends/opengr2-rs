@@ -3,9 +3,13 @@ use crate::parser::SectorInfo;
 #[repr(u32)]
 enum CompressionType {
     None,
+    #[allow(dead_code)]
     Oodle0,
+    #[allow(dead_code)]
     Oodle1,
+    #[allow(dead_code)]
     Bitknit1,
+    #[allow(dead_code)]
     Bitknit2
 }
 

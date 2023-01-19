@@ -2,11 +2,11 @@ use std::fs::File;
 use std::io::Read;
 use nom::number::Endianness;
 use crate::granny_path::GrannyResolve;
-use crate::parser::{Element, ElementType, parse_element, parse_file_info, parse_header, parse_sector_info};
+use crate::parser::{Element, parse_element, parse_file_info, parse_header, parse_sector_info};
 use crate::sector::load_sector;
 
 pub struct GrannyFile {
-    root_elements: Vec<Element>
+    pub root_elements: Vec<Element>
 }
 
 impl GrannyFile {
