@@ -31,3 +31,9 @@ pub fn load_sector(input: &[u8], endianness: Endianness, info: SectorInfo) -> Se
         pointer_table,
     }
 }
+
+impl Sector {
+    pub fn resolve_pointer(&self, offset: usize) -> Option<Pointer> {
+        self.pointer_table.iter().find(|p| p.src_offset as usize == offset).map(|p| p.clone())
+    }
+}

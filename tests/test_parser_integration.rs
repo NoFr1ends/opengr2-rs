@@ -27,7 +27,7 @@ fn parse_data(bytes: &[u8]) {
         input = next_input;
     }
 
-    let root = parse_element(
+    let (_, root) = parse_element(
         endianness,
         header.bits_64,
         &sectors,
@@ -40,14 +40,28 @@ fn parse_data(bytes: &[u8]) {
 
 #[test]
 fn test_parser_integration_le_7_32bits() {
-    let bytes = include_bytes!("../assets/test1.gr2");
+    let bytes = include_bytes!("../assets/suzanne_le.gr2");
 
     parse_data(bytes);
 }
 
 #[test]
-fn test_parser_integration_le_6_32bits() {
-    let bytes = include_bytes!("../assets/prova.gr2");
+fn test_parser_integration_le_7_64bits() {
+    let bytes = include_bytes!("../assets/suzanne_le64.gr2");
+
+    parse_data(bytes);
+}
+
+#[test]
+fn test_parser_integration_be_7_32bits() {
+    let bytes = include_bytes!("../assets/suzanne_be.gr2");
+
+    parse_data(bytes);
+}
+
+#[test]
+fn test_parser_integration_be_7_64bits() {
+    let bytes = include_bytes!("../assets/suzanne_be64.gr2");
 
     parse_data(bytes);
 }
