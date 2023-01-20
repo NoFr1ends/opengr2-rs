@@ -13,3 +13,5 @@ jobs:
         run: cargo build --release
       - name: Run cargo publish
         run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
