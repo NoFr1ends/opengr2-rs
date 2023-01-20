@@ -33,7 +33,7 @@ fn test_suzanne(granny_file: &GrannyFile) {
 
 #[test]
 fn test_le_7_32bits() {
-    let data = include_bytes!("../assets/suzanne_le.GR2");
+    let data = include_bytes!("../assets/suzanne_le.gr2");
     let granny_file = GrannyFile::load_from_bytes(data).unwrap();
 
     test_suzanne(&granny_file)
@@ -41,7 +41,7 @@ fn test_le_7_32bits() {
 
 #[test]
 fn test_le_7_64bits() {
-    let data = include_bytes!("../assets/suzanne_le64.GR2");
+    let data = include_bytes!("../assets/suzanne_le64.gr2");
     let granny_file = GrannyFile::load_from_bytes(data).unwrap();
 
     test_suzanne(&granny_file)
@@ -49,7 +49,7 @@ fn test_le_7_64bits() {
 
 #[test]
 fn test_be_7_32bits() {
-    let data = include_bytes!("../assets/suzanne_be.GR2");
+    let data = include_bytes!("../assets/suzanne_be.gr2");
     let granny_file = GrannyFile::load_from_bytes(data).unwrap();
 
     test_suzanne(&granny_file)
@@ -57,7 +57,7 @@ fn test_be_7_32bits() {
 
 #[test]
 fn test_be_7_64bits() {
-    let data = include_bytes!("../assets/suzanne_be64.GR2");
+    let data = include_bytes!("../assets/suzanne_be64.gr2");
     let granny_file = GrannyFile::load_from_bytes(data).unwrap();
 
     test_suzanne(&granny_file)
