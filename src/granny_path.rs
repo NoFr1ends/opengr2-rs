@@ -16,17 +16,15 @@ impl GrannyResolve for Vec<Element> {
 
         for e in self {
             if e.name == name {
-                return if index.is_none() {
-                    Some(e)
-                } else {
-                    let index = index.unwrap();
-
+                return if let Some(index) = index {
                     match &e.element {
                         ElementType::Reference(elements) => {
                             elements.resolve(&path[index + 1..])
                         }
                         _ => None
                     }
+                } else {
+                    Some(e)
                 }
             }
         }

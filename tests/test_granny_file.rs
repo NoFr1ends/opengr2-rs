@@ -62,3 +62,25 @@ fn test_be_7_64bits() {
 
     test_suzanne(&granny_file)
 }
+
+#[test]
+fn test_textured_external() {
+    let data = include_bytes!("../assets/suzanne_textured_external.gr2");
+    let granny_file = GrannyFile::load_from_bytes(data).unwrap();
+
+    test_suzanne(&granny_file);
+
+    let materials = granny_file.find_element("Materials").unwrap();
+    if let ElementType::ArrayOfReferences(materials) = &materials.element {
+        assert_eq!(materials.len(), 2);
+
+        let texture = materials[0].resolve("Texture").unwrap();
+        if let ElementType::Reference(texture) = &texture.element {
+            assert_eq!(texture.resolve("FromFileName").map(|e| &e.element), Some(&ElementType::String("texture.png".to_string())));
+        } else {
+            panic!("Texture on Material#0 is from the wrong type")
+        }
+    } else {
+        panic!("Materials is from the wrong type")
+    }
+}

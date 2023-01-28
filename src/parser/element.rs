@@ -1,7 +1,7 @@
 use nom::bytes::complete::{take, take_while};
 use nom::IResult;
 use nom::multi::count;
-use nom::number::complete::{f32, i32, u32, u64};
+use nom::number::complete::{f32, i32, u32, u64, u8};
 use nom::number::Endianness;
 use nom::sequence::tuple;
 use crate::parser::Pointer;
@@ -33,7 +33,9 @@ pub enum ElementType {
     String(String),
     /// A real value (aka float 32)
     F32(f32),
-    /// An unsigned 32 bit integer
+    /// An unsigned 8 bit integer
+    U8(u8),
+    /// A signed 32 bit integer
     I32(i32),
     ///
     Transform(Transform),
@@ -52,7 +54,7 @@ pub struct TypeInfo {
 
 fn unsigned(is_64bits: bool, endianness: Endianness) -> impl FnMut(&[u8]) -> IResult<&[u8], u64> {
     move |input| {
-        return if is_64bits {
+        if is_64bits {
             u64(endianness)(input)
         } else {
             let (input, val) = u32(endianness)(input)?;
@@ -61,7 +63,7 @@ fn unsigned(is_64bits: bool, endianness: Endianness) -> impl FnMut(&[u8]) -> IRe
     }
 }
 
-pub fn parse_type_info(endianness: Endianness, ptr_table: &Vec<Pointer>, is_64bits: bool, offset: u32) -> impl FnMut(&[u8]) -> IResult<&[u8], TypeInfo> + '_ {
+pub fn parse_type_info(endianness: Endianness, type_sector: &Sector, is_64bits: bool, offset: u32) -> impl FnMut(&[u8]) -> IResult<&[u8], TypeInfo> + '_ {
     move |input| {
         let type_id = u32(endianness); // 0
         let name_offset = unsigned(is_64bits, endianness); // 4
@@ -72,8 +74,8 @@ pub fn parse_type_info(endianness: Endianness, ptr_table: &Vec<Pointer>, is_64bi
 
         let (input, _) = take(if is_64bits { 20usize } else { 16usize })(input)?;
 
-        let name_offset = ptr_table.iter().find(|ptr| ptr.src_offset == offset + 4).map(|ptr| ptr.clone());
-        let children_offset = ptr_table.iter().find(|ptr| ptr.src_offset == offset + if is_64bits { 12 } else { 8 }).map(|ptr| ptr.clone());
+        let name_offset = type_sector.resolve_pointer((offset + 4) as _);
+        let children_offset = type_sector.resolve_pointer((offset + if is_64bits { 12 } else { 8 }) as _);
 
         Ok((input, TypeInfo {
             type_id,
@@ -103,7 +105,7 @@ pub fn parse_element(endianness: Endianness, is_64bits: bool, sectors: &Vec<Sect
     let mut elements = Vec::new();
 
     loop {
-        let (next, type_info) = parse_type_info(endianness, &type_sector.pointer_table, is_64bits, (all_type_data.len() - type_data.len()) as u32)(type_data)?;
+        let (next, type_info) = parse_type_info(endianness, type_sector, is_64bits, (all_type_data.len() - type_data.len()) as u32)(type_data)?;
         if type_info.type_id == 0 || type_info.type_id > 22 {
             break
         }
@@ -118,7 +120,7 @@ pub fn parse_element(endianness: Endianness, is_64bits: bool, sectors: &Vec<Sect
         let element = if type_info.array_size > 0 {
             let mut inners = Vec::new();
             for _ in 0..(if type_info.array_size == 0 { 1 } else { type_info.array_size }) {
-                let (next, element_inner) = parse_element_data(endianness, is_64bits, &sectors, data_sector_id, data_sector, all_data, data, &type_info)?;
+                let (next, element_inner) = parse_element_data(endianness, is_64bits, sectors, data_sector_id, all_data, data, &type_info)?;
                 data = next;
 
                 inners.push(element_inner);
@@ -129,7 +131,7 @@ pub fn parse_element(endianness: Endianness, is_64bits: bool, sectors: &Vec<Sect
                 element: ElementType::Array(inners)
             }
         } else {
-            let (next, element_inner) = parse_element_data(endianness, is_64bits, &sectors, data_sector_id, data_sector, all_data, data, &type_info)?;
+            let (next, element_inner) = parse_element_data(endianness, is_64bits, sectors, data_sector_id, all_data, data, &type_info)?;
             data = next;
 
             Element {
@@ -145,7 +147,8 @@ pub fn parse_element(endianness: Endianness, is_64bits: bool, sectors: &Vec<Sect
     Ok((data, elements))
 }
 
-fn parse_element_data<'a>(endianness: Endianness, is_64bits: bool, sectors: &'a Vec<Sector>, data_sector_id: u32, data_sector: &Sector, all_data: &[u8], mut data: &'a [u8], type_info: &TypeInfo) -> IResult<&'a [u8], ElementType> {
+fn parse_element_data<'a>(endianness: Endianness, is_64bits: bool, sectors: &'a Vec<Sector>, data_sector_id: u32, all_data: &[u8], mut data: &'a [u8], type_info: &TypeInfo) -> IResult<&'a [u8], ElementType> {
+    let data_sector = &sectors[data_sector_id as usize];
     match type_info.type_id {
         1 => {
             Ok((data, ElementType::VariantReference))
@@ -190,18 +193,19 @@ fn parse_element_data<'a>(endianness: Endianness, is_64bits: bool, sectors: &'a 
             let mut elements = Vec::new();
 
             let data_ptr = data_sector.resolve_pointer(pos);
-            if size > 0 {
-                let data_ptr = data_ptr.unwrap();
-                let type_ptr = type_info.children_offset.unwrap();
+            if size > 0 && data_ptr.is_some() {
+                if let Some(data_ptr) = data_ptr {
+                    let type_ptr = type_info.children_offset.unwrap();
 
-                let data_sector = &sectors[data_ptr.dst_sector as usize];
+                    let data_sector = &sectors[data_ptr.dst_sector as usize];
 
-                let mut data_offset = data_ptr.dst_offset;
-                for _ in 0..size {
-                    let (left_data, mut e) = parse_element(endianness, is_64bits, sectors, data_ptr.dst_sector, type_ptr.dst_sector, data_offset, type_ptr.dst_offset)?;
-                    elements.append(&mut e);
+                    let mut data_offset = data_ptr.dst_offset;
+                    for _ in 0..size {
+                        let (left_data, mut e) = parse_element(endianness, is_64bits, sectors, data_ptr.dst_sector, type_ptr.dst_sector, data_offset, type_ptr.dst_offset)?;
+                        elements.append(&mut e);
 
-                    data_offset = (data_sector.data.len() - left_data.len()) as u32;
+                        data_offset = (data_sector.data.len() - left_data.len()) as u32;
+                    }
                 }
             }
 
@@ -308,6 +312,12 @@ fn parse_element_data<'a>(endianness: Endianness, is_64bits: bool, sectors: &'a 
 
             Ok((data, ElementType::F32(val)))
         },
+        12 | 14 => {
+            let (next, val) = u8(data)?;
+            data = next;
+
+            Ok((data, ElementType::U8(val)))
+        }
         19 => {
             let (next, val) = i32(endianness)(data)?;
             data = next;
