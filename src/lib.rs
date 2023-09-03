@@ -8,3 +8,4 @@ mod granny_path;
 
 pub use granny_file::GrannyFile;
 pub use granny_path::GrannyResolve;
+pub use granny_path::GrannyPathError;

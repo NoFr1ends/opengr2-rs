@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use nom::number::Endianness;
 use crate::granny_path::GrannyResolve;
-use crate::parser::{Element, parse_element, parse_file_info, parse_header, parse_sector_info};
+use crate::parser::{Element, ElementType, parse_element, parse_file_info, parse_header, parse_sector_info};
 use crate::sector::load_sector;
 
 pub struct GrannyFile {
@@ -54,7 +54,11 @@ impl GrannyFile {
         })
     }
 
-    pub fn find_element(&self, path: &str) -> Option<&Element> {
+    pub fn elements(&self) -> &Vec<Element> {
+        &self.root_elements
+    }
+
+    pub fn find_element(&self, path: &str) -> Option<&ElementType> {
         self.root_elements.resolve(path)
     }
 }
